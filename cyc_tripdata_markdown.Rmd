@@ -1,0 +1,313 @@
+---
+title: "cyclistic_data_202206-202306"
+author: "Jonnie"
+date: "2023-07-31"
+output: html_document
+---
+
+# Introduction
+
+This R Markdown document presents an in-depth analsis of Cyclistic bike share data from June 2022 to June 2023. The analysis focuses on three key aspects:
+
+1. Ride Length, Count, and distance by Month
+2. Ride Length, Count, and distance by Weekday
+3. Preferred Ride Type by Membership
+
+## Data Loading
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(janitor)
+library(ggplot2)
+library(lubridate)
+library(geosphere)
+library(dplyr)
+library(scales)
+
+cyclistic_year_date <- rbind(read.csv("202206-divvy-tripdata.csv"),
+                             read.csv("202207-divvy-tripdata.csv"),
+                             read.csv("202208-divvy-tripdata.csv"),
+                             read.csv("202209-divvy-tripdata.csv"),
+                             read.csv("202210-divvy-tripdata.csv"),
+                             read.csv("202211-divvy-tripdata.csv"),
+                             read.csv("202212-divvy-tripdata.csv"),
+                             read.csv("202301-divvy-tripdata.csv"),
+                             read.csv("202302-divvy-tripdata.csv"),
+                             read.csv("202303-divvy-tripdata.csv"),
+                             read.csv("202304-divvy-tripdata.csv"),
+                             read.csv("202305-divvy-tripdata.csv"),
+                             read.csv("202306-divvy-tripdata.csv")
+)
+
+```
+
+
+## Clean Data
+
+Data is then cleaned and processed.
+This includes:
+
+1. Converting columns:
+  a. 'start_time'
+  b. 'end_time'
+  into date formats.
+  
+```{r}
+cyclistic_year_date$start_time <- ymd_hms(cyclistic_year_date$started_at)
+cyclistic_year_date$end_time <- ymd_hms(cyclistic_year_date$ended_at)
+```
+  
+2. Separating 'start_time' column into 'YYY-MM' and 'day' format.
+
+```{r}
+cyclistic_year_date$date <- as.Date(cyclistic_year_date$started_at)
+cyclistic_year_date$month <- format(as.Date(cyclistic_year_date$date), "%y-%m")
+cyclistic_year_date$day <- format(as.Date(cyclistic_year_date$date), "%d")
+```
+
+3. Convert 'day' column into weekday name
+
+```{r}
+cyclistic_year_date$weekday <- format(as.Date(cyclistic_year_date$date), "%A")
+```
+
+4. Calculate the 'ride_length' by using the 'difftime()' function subtracting columns ('ended_at' - 'started_at') into seconds
+
+```{r}
+cyclistic_year_date$ride_length <- difftime(cyclistic_year_date$ended_at,
+                                            cyclistic_year_date$started_at,
+                                            units = "auto")
+```
+
+5. Calculate the 'ride_distance' by using the 'distGeo()' function to calculate the distance between start and end locations into km.
+
+```{r}
+cyclistic_year_date$ride_distance <- distGeo(
+  matrix(c(cyclistic_year_date$start_lng, cyclistic_year_date$start_lat), ncol = 2),
+  matrix(c(cyclistic_year_date$end_lng, cyclistic_year_date$end_lat), ncol = 2)
+) /1000
+```
+
+
+6. Removing irrelevant data by filtering out and 'ride_distance' over 0 and below 150,
+and removing any 'ride_length' values below or equal to 0.
+
+```{r}
+cleaned_data <- filter(cyclistic_year_date, ride_distance > 0) %>% 
+  filter(ride_distance < 150) %>% 
+  filter(ride_length > 0)
+```
+
+7. Replace instances of "docked_bike" with "electric_bike" using the 'gsub()' function.
+
+```{r}
+cleaned_data$rideable_type <- gsub("docked_bike", "electric_bike", cleaned_data$rideable_type)
+```
+
+
+## Summarize the data
+
+We then take the clean data and group it by member type('member_casual').
+We then summarize the grouped data by:
+  *average_ride_length
+  *max_ride_length
+  *median_ride_length
+  *min_ride_length
+  *average_ride_distance
+  *max_ride_distance
+  *median_ride_distance
+  *min_ride_distance
+  
+Then convert the average ride length to minutes for readability
+
+```{r cars}
+cyc_yr_data <- cleaned_data %>% 
+  group_by(member_casual) %>% 
+  summarise(amount_of_rides = length(ride_id),
+            average_ride_legnth = mean(ride_length),
+            max_ride_length = max(ride_length),
+            median_ride_length = median(ride_length),
+            min_ride_length = min(ride_length),
+            avererage_ride_distance = mean(ride_distance),
+            max_ride_length = max(ride_distance),
+            median_ride_distance = median(ride_distance),
+            min_ride_distance = min(ride_distance)
+  )
+
+cyc_yr_data$average_ride_legnth <- as.numeric(cyc_yr_data$average_ride_legnth, units = "mins")
+
+```
+
+
+We then group by member type('memeber_casual') and 'month'
+
+```{r}
+cyc_yr_month <- cleaned_data %>% 
+  group_by(member_casual, month) %>% 
+  summarise(amount_of_rides = length(ride_id),
+            average_ride_legnth = mean(ride_length),
+            max_ride_length = max(ride_length),
+            median_ride_length = median(ride_length),
+            min_ride_length = min(ride_length),
+            avererage_ride_distance = mean(ride_distance),
+            max_ride_length = max(ride_distance),
+            median_ride_distance = median(ride_distance),
+            min_ride_distance = min(ride_distance)
+  )
+
+cyc_yr_month$average_ride_legnth <- as.numeric(cyc_yr_month$average_ride_legnth, units = "mins")
+```
+
+We then group by member type('member_casual') and 'weekday'.
+Then order the results by days of the week (Monday - Sunday)
+
+```{r}
+cyc_yr_wkd <- cleaned_data %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(amount_of_rides = length(ride_id),
+            average_ride_legnth = mean(ride_length),
+            max_ride_length = max(ride_length),
+            median_ride_length = median(ride_length),
+            min_ride_length = min(ride_length),
+            avererage_ride_distance = mean(ride_distance),
+            max_ride_length = max(ride_distance),
+            median_ride_distance = median(ride_distance),
+            min_ride_distance = min(ride_distance)
+  )
+
+cyc_yr_wkd$weekday <- factor(cyc_yr_wkd$weekday,
+                             levels = c("Monday", "Tuesday", 
+                                        "Wednesday", "Thursday", 
+                                        "Friday", "Saturday", "Sunday"))
+
+cyc_yr_wkd2 <- cyc_yr_wkd[order(cyc_yr_wkd$weekday), ]
+
+cyc_yr_wkd2$average_ride_legnth <- as.numeric(cyc_yr_wkd2$average_ride_legnth,  units = "mins")
+```
+
+We then group by member type('member_casual') and type of ride('ride_type')
+
+```{r}
+cyc_yr_type <- cleaned_data %>% 
+  group_by(member_casual, rideable_type) %>% 
+  summarise(amount_of_rides = length(ride_id),
+            average_ride_legnth = mean(ride_length),
+            max_ride_length = max(ride_length),
+            median_ride_length = median(ride_length),
+            min_ride_length = min(ride_length),
+            avererage_ride_distance = mean(ride_distance),
+            max_ride_length = max(ride_distance),
+            median_ride_distance = median(ride_distance),
+            min_ride_distance = min(ride_distance)
+  )
+```
+
+
+## Ploting the data
+
+### Ploting by Month
+
+We visualize the data summarization  by length, count, and distance for each month:
+
+```{r pressure, echo=FALSE}
+#Ride length by month
+
+ggplot(cyc_yr_month) +
+  geom_col(aes(x = month, y = average_ride_legnth, 
+                 fill = member_casual), position = "dodge")+
+  labs(title = "Ride Length by Month", 
+       subtitle = "Ride Data 22/06 - 23/06",
+       x = "Month", 
+       y = "Average Ride Length (mins)")
+
+#Ride count by month
+
+ggplot(cyc_yr_month) +
+  geom_line(aes(x = month, y = amount_of_rides, 
+               color = member_casual, group = member_casual))+
+  labs(title = "Number of Rides by Month", 
+       subtitle = "Ride Data 22/06 - 23/06",
+       x = "Month", 
+       y = "Number of Rides")+
+  scale_y_continuous(labels = 
+                       label_number(scale = 1e-4, suffix ='k', accuracy = 1))
+
+#Ride distance by month
+
+ggplot(cyc_yr_month) +
+  geom_line(aes(x = month, y = avererage_ride_distance, 
+                color = member_casual, group = member_casual))+
+  labs(title = "Disatance of  Rides by Month", 
+       subtitle = "Ride Data 22/06 - 23/06",
+       x = "Month", 
+       y = "Average Distance Length (km)")
+```
+
+### Ploting by Weekday
+
+We visualize the data summarization by length, count, and distance for each weekday:
+
+```{r}
+#Average length by Weekday
+
+ggplot(cyc_yr_wkd2) +
+  geom_col(aes(x = weekday, y = average_ride_legnth, 
+               fill = member_casual), position = "dodge")+
+  labs(title = "Ride Length by Weekday", 
+       subtitle = "Ride Data 22/06 - 23/06",
+       x = "Weekday", 
+       y = "Average Ride Length (mins)")
+
+
+#Ride count by Weekday
+
+ggplot(cyc_yr_wkd2) +
+  geom_line(aes(x = weekday, y = amount_of_rides, 
+               color = member_casual, group = member_casual))+
+  labs(title = "Number of Rides by Weekday", 
+       subtitle = "22/06 - 23/-06",
+       x = "Weekday", 
+       y = "Number of Rides") +
+  scale_y_continuous(labels = 
+                       label_number(scale = 1e-4, suffix ='k', accuracy = 1))
+
+#Average distance by Weekday
+
+ggplot(cyc_yr_wkd2) +
+  geom_line(aes(x = weekday, y = avererage_ride_distance, 
+               color = member_casual, group = member_casual), position = "dodge")+
+  labs(title = "Disatance of  Rides by Weekday", 
+       subtitle = "Ride Data 22/06 - 23/06",
+       x = "Weekday", 
+       y = "Average Distance Length (km)")
+```
+
+### Ploting by Weekday
+
+We visualize which ride type is more favorable for each membership:
+
+```{r}
+ggplot(cyc_yr_type) +
+  geom_col(aes(x = rideable_type, y = amount_of_rides,
+               fill = member_casual), position = "dodge") +
+  labs(title = "Perferred Type of Ride by Membership",
+       subtitle = "Ride Data 22/06 - 23/06",
+       x = "Ride Type",
+       y = "Number of Rides (Millions)",
+       fill = "Membership") +
+  scale_y_continuous(
+    labels = function(x) format(x/1e6, scientific = FALSE, suffix = "M"))
+```
+
+## Conclusion
+
+The analysis provides valuable insights into the Cyclistic bike share service usage patterns based on various factors, including month, weekdays, and ride types. Key findings include:
+
+* Both member types, Members and Casuals, are more likely to use the Cyclistic service during the warmer months (April - October), with lower usage during the colder months (November - March).
+* Members tend to use the service more frequently, while casual users on average spend more time and cover a greater distance per ride compared to members.
+* Weekday usage is higher among members, whereas casuals show a preference for using the service during weekends.
+* Both user types favor electric bikes, with casual users being significantly more likely to choose electric bikes over classic bikes compared to members.
+
+These insights can inform targeted marketing strategies and service improvements to cater to
+different user preferences and optimize the overall bike share experience.
+

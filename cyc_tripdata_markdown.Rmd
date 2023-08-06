@@ -299,7 +299,7 @@ ggplot(cyc_yr_type) +
     labels = function(x) format(x/1e6, scientific = FALSE, suffix = "M"))
 ```
 
-## Conclusion
+## Findings
 
 The analysis provides valuable insights into the Cyclistic bike share service usage patterns based on various factors, including month, weekdays, and ride types. Key findings include:
 
@@ -310,4 +310,11 @@ The analysis provides valuable insights into the Cyclistic bike share service us
 
 These insights can inform targeted marketing strategies and service improvements to cater to
 different user preferences and optimize the overall bike share experience.
+
+## Proposal
+
+* Distinct usage patterns observed between Casual users and Members of Cyclist bikes
+* Precise reasons for differences are inconclusive, requiring a deeper analysis
+* Conducting a granular examination to gain comprehensive insights into user behavior
+* Aim for a successful and impactful conversion campaign
 
